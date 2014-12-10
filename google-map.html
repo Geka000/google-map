@@ -34,7 +34,7 @@ child of `google-map`.
 @status alpha
 @homepage http://googlewebcomponents.github.io/google-map
 -->
-<polymer-element name="google-map-marker" attributes="icon">
+<polymer-element name="google-map-marker" attributes="icon selected">
 <template>
   <style>
     :host {
@@ -46,6 +46,19 @@ child of `google-map`.
   (function() {
 
     Polymer({
+
+      selected:false,
+      selectedChanged: function(oldVal){
+        if (this.selected){
+          this.info.open(this.map, this.marker);
+        }
+        else{
+          this.info.close();
+        }
+      },
+      fireClick:function(){
+        this.fire("marker-clicked");
+      },
 
       /**
        * A Google Maps marker object.
@@ -150,6 +163,8 @@ child of `google-map`.
             this.info = new google.maps.InfoWindow();
             this.infoHandler_ = google.maps.event.addListener(this.marker, 'click', function() {
               this.info.open(this.map, this.marker);
+              this.fireClick();
+              this.selected = true;
             }.bind(this));
           }
           this.info.setContent(content);
@@ -211,6 +226,197 @@ child of `google-map`.
         this.dragHandler_ = null;
       }
     }
+
+  })();
+
+</script>
+</polymer-element>
+
+<!--
+The `google-map-polyline` element represents a map polyline. It is used as a
+child of `google-map`.
+
+<b>Example</b>:
+
+    <google-map latitude="37.77493" longitude="-122.41942">
+      <google-map-marker latitude="37.779" longitude="-122.3892"
+          title="Go Giants!"></google-map-marker>
+    </google-map>
+
+<b>Example</b> - marker with info window (children create the window content):
+
+    <google-map-marker latitude="37.77493" longitude="-122.41942">
+      <img src="image.png">
+    </google-map-marker>
+
+<b>Example</b> - a draggable marker:
+
+    <google-map-marker latitude="37.77493" longitude="-122.41942"
+         draggable="true"></google-map-marker>
+
+<b>Example</b> - hide a marker:
+
+    <google-map-marker latitude="37.77493" longitude="-122.41942"
+        hidden></google-map-marker>
+
+@element google-map-marker
+@status alpha
+@homepage http://googlewebcomponents.github.io/google-map
+-->
+<polymer-element name="google-map-polyline" attributes="icon">
+<template>
+  <style>
+    :host {
+      display: none;
+    }
+  </style>
+</template>
+<script>
+  (function() {
+
+    Polymer({
+
+      /**
+       * A Google Maps marker object.
+       *
+       * @property marker
+       * @type google.maps.Marker
+       * @default null
+       */
+      polyline: null,
+
+      /**
+       * The Google map object.
+       *
+       * @property map
+       * @type google.maps.Map
+       * @default null
+       */
+      map: null,
+
+      /**
+       * A Google Map Infowindow object.
+       *
+       * @property info
+       * @type google.map.InfoWindow
+       * @default null
+       */
+      info: null,
+
+      /**
+       * Image URL for the marker icon.
+       *
+       * @attribute icon
+       * @type string
+       * @default null
+       */
+      icon: null,
+
+      publish: {
+        /**
+         * The polyline's lat,lon array
+         *
+         * @attribute longitude
+         * @type number
+         * @default null
+         */
+        path: {value: null, reflect: true},
+
+      },
+
+      /*
+      observe: {
+        latitude: 'updatePosition',
+        longitude: 'updatePosition',
+      },
+
+      */
+
+      detached: function() {
+        this.polyline.setMap(null);
+      },
+
+      attached: function() {
+        // If element is added back to DOM, put it back on the map.
+        if (this.polyline) {
+          this.polyline.setMap(this.map);
+        }
+      },
+
+      /*
+      updatePosition: function() {
+        if (this.marker && this.latitude != null && this.longitude != null) {
+          this.marker.setPosition({
+            lat: parseFloat(this.latitude),
+            lng: parseFloat(this.longitude)
+          });
+        }
+      },
+      */
+
+      mapChanged: function() {
+        if (this.map && this.map instanceof google.maps.Map) {
+          this.mapReady();
+        }
+      },
+
+      contentChanged: function() {
+        this.onMutation(this, this.contentChanged); // Watch for future updates.
+        /*
+        var content = this.innerHTML;
+        if (content) {
+          if (!this.info) {
+            // Create a new infowindow
+            this.info = new google.maps.InfoWindow();
+            this.infoHandler_ = google.maps.event.addListener(this.marker, 'click', function() {
+              this.info.open(this.map, this.marker);
+            }.bind(this));
+          }
+          this.info.setContent(content);
+        } else {
+          if (this.info) {
+            // Destroy the existing infowindow.  It doesn't make sense to have an empty one.
+            google.maps.event.removeListener(this.infoHandler_);
+            this.info = null;
+          }
+        }
+        */
+      },
+
+      mapReady: function() {
+        this.polyline = new google.maps.Polyline({
+          map: this.map,
+          path: this.path,
+          geodesic: true,
+          strokeColor: '#FF0000',
+          strokeOpacity: 1.0,
+          strokeWeight: 2,
+          visible: !this.hidden,
+        });
+        this.contentChanged();
+      },
+
+      attributeChanged: function(attrName, oldVal, newVal) {
+        if (!this.marker) {
+          return;
+        }
+
+        // Cannot use *Changed watchers for native properties.
+        switch (attrName) {
+          case 'hidden':
+            this.marker.setVisible(!this.hidden);
+            break;
+          case 'draggable':
+            this.marker.setDraggable(this.draggable);
+            setupDragHandler_.bind(this)();
+            break;
+          case 'title':
+            this.marker.setTitle(this.title);
+            break;
+        }
+      }
+
+    });
 
   })();
 
@@ -312,6 +518,7 @@ Fired when the Maps API has fully loaded.
   <div id="map"></div>
 
   <content id="markers" select="google-map-marker"></content>
+  <content id="polylines" select="google-map-polyline"></content>
 
 </template>
 <script>
@@ -464,6 +671,7 @@ Fired when the Maps API has fully loaded.
 
       this.updateCenter();
       this.updateMarkers();
+      this.updatePolylines();
       this.addMapListeners();
 
       this.fire('google-map-ready');
@@ -514,6 +722,20 @@ Fired when the Maps API has fully loaded.
 
         if (this.fitToMarkers) {
           this.fitToMarkersChanged();
+        }
+      }
+    },
+
+    updatePolylines: function() {
+      this.polylines = Array.prototype.slice.call(
+          this.$.polylines.getDistributedNodes());
+
+      this.onMutation(this, this.updatePolylines); // Watch for future updates.
+
+      // Set the map on each marker and zoom viewport to ensure they're in view.
+      if (this.polylines.length && this.map) {
+        for (var i = 0, p; p = this.polylines[i]; ++i) {
+          p.map = this.map;
         }
       }
     },
